@@ -17,14 +17,19 @@ class Population:
     def select_and_breed(self):
         # Sort by fitness descending
         self.cars.sort(key=lambda c: c.score, reverse=True)
-        top10 = self.cars[:max(1, self.size//10)]
-        total_fitness = sum(c.score for c in top10)
+        ELITE_PERCENTAGE = 0.2
+        top = self.cars[:max(2, int(len(self.cars) * ELITE_PERCENTAGE))]
+        min_score = top[-1].score
+        for car in top:
+            car.score -= min_score
+            
+        total_score = sum(c.score for c in top) + 1e-6
         self.pcts = []
-        
-        next_gen = [Car(self.track, brain=top10[0].brain.clone())]  # elitism: keep best car
-        for car in top10:
-            n_offspring = int((car.score / total_fitness) * (self.size - 1))
-            self.pcts.append((car.score / total_fitness) * 100)
+
+        next_gen = []
+        for car in top:
+            n_offspring = int((car.score / total_score) * (self.size))
+            self.pcts.append((car.score / total_score) * 100)
             for _ in range(n_offspring):
                 child_brain = car.brain.clone()
                 child_brain.mutate(rate=0.1)
@@ -32,7 +37,7 @@ class Population:
 
         # Fill up population if under size
         while len(next_gen) < self.size:
-            parent = random.choice(top10)
+            parent = random.choice(top)
             child_brain = parent.brain.clone()
             child_brain.mutate(rate=0.1)
             next_gen.append(Car(self.track, brain=child_brain))

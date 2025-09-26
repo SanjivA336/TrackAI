@@ -24,7 +24,7 @@ class CarHistoryNode:
 
         if self.acceleration < 0:
             # From red (-0.2) to yellow (0)
-            norm = max(-1, min(1, self.acceleration / (Car.ACCELERATION_RATE * 0.2)))
+            norm = max(-1, min(1, self.acceleration / (Car.ACCELERATION_RATE)))
             r, g, b = 255, int(255 * (1 + norm)), 0
         else:
             # From yellow (0) to green (+1)
@@ -43,16 +43,15 @@ class CarHistoryNode:
 class Car:
     # --- Movement constants ---
     ACCELERATION_RATE = 0.2
-    TURN_RATE = 10
-    MAX_VELOCITY = 10
+    TURN_RATE = 15
+    MAX_VELOCITY = 20
     CAR_COLOR = (200, 150, 0)
 
     # --- Scoring constants ---
-    TIME_PENALTY = -5
-    GRASS_PENALTY = -50
-    CRASH_PENALTY = -1000
+    GRASS_PENALTY = -10
+    CRASH_PENALTY = -20
 
-    END_DISTANCE_REWARD_MULT = 10
+    DISTANCE_SPEED_REWARD = 50
     GOAL_REWARD = 100
     END_GOAL_REWARD = 1000
 
@@ -76,7 +75,7 @@ class Car:
 
     # --- Actions ---
     def accelerate(self, pct):
-        self.acceleration = max(-0.2, min(1, pct)) * self.ACCELERATION_RATE
+        self.acceleration = max(-1, min(1, pct)) * self.ACCELERATION_RATE
 
     def turn(self, pct):
         pct = max(-1, min(1, pct))
@@ -91,10 +90,11 @@ class Car:
             self.score += self.CRASH_PENALTY
             return
         elif self.state == CarState.GOAL:
+            self.velocity = pygame.Vector2(0, 0)
+            self.acceleration = 0
             self.score += self.GOAL_REWARD
-            
-        self.score += self.TIME_PENALTY
-
+            return
+        
         # Forward vector
         forward = pygame.Vector2(math.cos(math.radians(self.angle)), math.sin(math.radians(self.angle)))
 
@@ -165,7 +165,7 @@ class Car:
             self.state = CarState.CRASHED
             self.score += self.CRASH_PENALTY
 
-    def check_sensors(self, arc=360, resolution=8, max_distance=100):
+    def check_sensors(self, arc=180, resolution=8, max_distance=150):
         readings = []
         for i in range(resolution):
             ray_angle = math.radians(self.angle + (i * arc / resolution) - arc / 2)
@@ -181,14 +181,15 @@ class Car:
 
     # --- Intelligence ---
     def think(self):
-        inputs = self.check_sensors() + [self.velocity.length() / self.MAX_VELOCITY, self.angle / 360, self.state.value / 4, 1 - (self.track.get_length_remaining(self.position.x, self.position.y) / self.track.get_length())]
+        traveled = self.track.get_length() - self.track.get_length_remaining(self.position.x, self.position.y)
+        self.score += (traveled / self.track.get_length()) * self.DISTANCE_SPEED_REWARD
+        inputs = self.check_sensors() + [self.velocity.length() / self.MAX_VELOCITY, self.angle / 360, self.state.value / 4, traveled / self.track.get_length()]
         output = self.brain.forward(inputs)
         self.accelerate(output[0])
         self.turn(output[1])
 
     def finalize_fitness(self):
         traveled = self.track.get_length() - self.track.get_length_remaining(self.position.x, self.position.y)
-        self.score += traveled * Car.END_DISTANCE_REWARD_MULT
         if self.state == CarState.GOAL:
             self.score += self.END_GOAL_REWARD
     
@@ -208,7 +209,7 @@ class Car:
         if sensors:
             self.draw_sensors()
 
-    def draw_sensors(self, arc=360, resolution=8, max_distance=100, color=(0, 255, 0)):
+    def draw_sensors(self, arc=180, resolution=8, max_distance=150, color=(0, 255, 0)):
         for i in range(resolution):
             ray_angle = math.radians(self.angle + (i * arc / resolution) - arc / 2)
             dir_vector = pygame.Vector2(math.cos(ray_angle), math.sin(ray_angle))

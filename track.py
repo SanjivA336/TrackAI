@@ -10,7 +10,7 @@ class Track:
     
     # Constants
     ROAD_WIDTH = 50
-    RUNOFF_WIDTH = 50
+    RUNOFF_WIDTH = 30
     WALL_WIDTH = 20
     GOAL_WIDTH = 50
     
