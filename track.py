@@ -10,10 +10,10 @@ class TrackState(Enum):
 
 class Track:
     # ================= Constants =================
-    ROAD_WIDTH = 50
-    RUNOFF_WIDTH = 30
+    ROAD_WIDTH = 30
+    RUNOFF_WIDTH = 10
     WALL_WIDTH = 20
-    GOAL_WIDTH = 50
+    GOAL_WIDTH = ROAD_WIDTH
     DESIRED_DISTANCE = ROAD_WIDTH / 4
     TEMP_WIDTH = 5
 

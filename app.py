@@ -26,8 +26,8 @@ running = True
 drawing = False
 track = Track(WINDOW)
 
-POPULATION_SIZE = 50
-GENERATION_TIME = 20       # seconds per generation
+POPULATION_SIZE = 40
+GENERATION_TIME = 30       # seconds per generation
 
 population = None
 population_count = 1
@@ -40,7 +40,7 @@ UI_X = WIDTH - 300
 #   UI State Variables
 # ============================================================
 show_history = True
-show_sensors = True
+show_sensors = False
 
 # Button rectangles
 BUTTON_WIDTH, BUTTON_HEIGHT = 100, 30
@@ -130,7 +130,7 @@ while running:
             population_count += 1
 
             # --- Update fastest times ---
-            prev_gen_best = current_gen_best
+            prev_gen_best = current_gen_best if current_gen_best != -1 else None
             current_gen_best = -1
             if prev_gen_best is not None:
                 if all_time_best is None or prev_gen_best < all_time_best:
@@ -140,14 +140,12 @@ while running:
     #   Rendering
     # ========================================================
     if population:
-        # Highlight top-performing car
-        top_car = max(population.cars, key=lambda c: c.score)
-        top_car.draw(history=show_history, sensors=show_sensors)
+        # Sort cars by descending fitness
+        population.cars.sort(key=lambda c: c.score, reverse=True)
 
         # Draw remaining cars
-        for car in population.cars:
-            if car != top_car:
-                car.draw(history=False, sensors=False)
+        for i, car in enumerate(population.cars):
+            car.draw(history=(i < 1 and show_history), sensors=(i < 1 and show_sensors))
 
         # --- UI Stats ---
         draw_text(WINDOW, f"Time ({int((1 - (generation_timer / GENERATION_TIME)) * 100)}%): {int(GENERATION_TIME - generation_timer)}s / {int(GENERATION_TIME)}s", (UI_X, 10))

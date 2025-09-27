@@ -18,7 +18,7 @@ class CarState(Enum):
 #   Car History Node
 # ============================================================
 class CarHistoryNode:
-    NODE_SIZE = 5
+    NODE_SIZE = 3
 
     def __init__(self, surface, position: pygame.Vector2, acceleration: float):
         self.surface = surface
@@ -201,8 +201,8 @@ class Car:
     # ========================================================
     def think(self):
         """Evaluate sensors and velocity, then act using neural network outputs."""
-        traveled = self.track.get_length() - self.track.get_length_remaining(self.position.x, self.position.y)
-        self.score += (traveled / self.track.get_length()) * self.DISTANCE_SPEED_REWARD
+        traveled = (self.track.get_length() - self.track.get_length_remaining(self.position.x, self.position.y)) / self.track.get_length()
+        self.score += (traveled * Car.DISTANCE_SPEED_REWARD) if traveled > 0.2 else ((1 - traveled) * Car.CRASH_PENALTY)
 
         inputs = (
             self.check_sensors()
@@ -212,8 +212,9 @@ class Car:
                traveled / self.track.get_length()]
         )
         output = self.brain.forward(inputs)
-        self.accelerate(output[0])
-        self.turn(output[1])
+        if (self.state != CarState.CRASHED) and (self.state != CarState.GOAL):
+            self.accelerate(output[0])
+            self.turn(output[1])
 
     def finalize_fitness(self):
         """Add final reward if goal is reached."""
@@ -225,7 +226,27 @@ class Car:
     #   Rendering
     # ========================================================
     def draw(self, history=True, sensors=False):
-        """Draw car body, history, and sensors (if enabled)."""
+        """Draw car body with dynamic color, history, and sensors (if enabled)."""
+        
+        
+        # Normalize velocity into [0, 1]
+        norm = max(0, min(1, self.velocity.length() / Car.MAX_VELOCITY))
+
+        # Compute color channels
+        traveled = self.track.get_length() - self.track.get_length_remaining(self.position.x, self.position.y)
+        blue = int(255 * (traveled / (self.track.get_length())))
+        if self.velocity.length() < Car.MAX_VELOCITY * 0.5:
+            red = 127
+            green = int(255 * norm)
+        else:
+            red = int(255 * (1 - norm))
+            green = 127
+
+        if self.state == CarState.CRASHED:
+            color = (20, 20, 40)  # Gray for crashed
+        else:
+            color = (red, green, blue)
+
         # Car triangle (tip, rear-left, rear-right)
         length, width = 12, 8
         forward = pygame.Vector2(math.cos(math.radians(self.angle)), math.sin(math.radians(self.angle)))
@@ -233,7 +254,8 @@ class Car:
         tip = self.position + forward * length / 2
         rear_left = self.position - forward * length / 2 + right * width / 2
         rear_right = self.position - forward * length / 2 - right * width / 2
-        pygame.draw.polygon(self.track.surface, self.CAR_COLOR, [tip, rear_left, rear_right])
+
+        pygame.draw.polygon(self.track.surface, color, [tip, rear_left, rear_right])
 
         if history:
             self.draw_history()
